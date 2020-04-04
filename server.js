@@ -12,19 +12,12 @@
  */
 'use strict';
 
-var dataAccess = require('./dataaccess-couch');
-
 var argv = require('optimist')
     .usage('$0 [--debug] [--recreate-views] [--port <port>] [--log <logfile>] [--db <database>]')
     .default('port', 8080)
     .default('log', 'treason.log')
     .default('db', 'treason_db')
     .argv;
-
-dataAccess.init(argv.db, {
-    recreateViews: argv['recreate-views'],
-    ranksToReturn: 10
-});
 
 var winston = require('winston');
 winston.add(winston.transports.File, {
@@ -59,12 +52,6 @@ var games = {};
 var players = {};
 var rankings = [];
 
-dataAccess.getPlayerRankings().then(function (result) {
-    rankings = result;
-    //This will submit the rankings to everyone
-    io.sockets.emit('rankings', result);
-});
-
 io.on('connection', function (socket) {
     //Emit the global rankings upon connect
     socket.emit('rankings', rankings);
@@ -76,26 +63,25 @@ io.on('connection', function (socket) {
         }
 
         var userAgent = socket.request.headers['user-agent'];
-        dataAccess.register(data.playerId, data.playerName, userAgent).then(function (playerId) {
-            socket.playerId = playerId;
+        var playerId = data.playerId;
+        socket.playerId = playerId;
 
-            var playerName = data.playerName;
-            var currentOnlinePlayers = filterPlayers().concat([{playerName: playerName}]);
+        var playerName = data.playerName;
+        var currentOnlinePlayers = filterPlayers().concat([{playerName: playerName}]);
 
-            socket.emit('handshake', {
-                playerId: playerId,
-                games: filterGames(),
-                players: currentOnlinePlayers
-            }, function (data) {
-                //Once the client acknowledged it received the handshake, it will invoke the function passed and let us
-                //know it was logged in. We will ignore that message and add the player to the list of logged in players.
-                players[playerId] = {
-                    playerName: playerName
-                };
+        socket.emit('handshake', {
+            playerId: playerId,
+            games: filterGames(),
+            players: currentOnlinePlayers
+        }, function (data) {
+            //Once the client acknowledged it received the handshake, it will invoke the function passed and let us
+            //know it was logged in. We will ignore that message and add the player to the list of logged in players.
+            players[playerId] = {
+                playerName: playerName
+            };
 
-                broadcastPlayers();
-                socket.broadcast.emit('globalchatmessage', playerName + ' has joined the lobby.');
-            });
+            broadcastPlayers();
+            socket.broadcast.emit('globalchatmessage', playerName + ' has joined the lobby.');
         });
     });
 
@@ -123,15 +109,9 @@ io.on('connection', function (socket) {
     });
 
     socket.on('showrankings', function () {
-        dataAccess.getPlayerRankings(socket.playerId).then(function (result) {
-            socket.emit('rankings', result);
-        });
     });
 
     socket.on('showmyrank', function () {
-        dataAccess.getPlayerRankings(socket.playerId, true).then(function (result) {
-            socket.emit('rankings', result);
-        });
     });
 
     socket.on('sendglobalchatmessage', function (data) {
@@ -217,7 +197,6 @@ function createNewGame(socket, password) {
         gameName: gameName,
         created: new Date(),
         password: password || '',
-        dataAccess: dataAccess
     });
 
     games[gameName] = game;
@@ -228,9 +207,6 @@ function createNewGame(socket, password) {
     });
 
     game.once('end', function () {
-        dataAccess.getPlayerRankings().then(function (result) {
-            rankings = result;
-        });
     });
 
     game.on('statechange', function () {

@@ -39,7 +39,6 @@ var epithets = fs.readFileSync(__dirname + '/epithets.txt', 'utf8').split(/\r?\n
 module.exports = function createGame(options) {
     options = options || {};
     var gameId = nextGameId++;
-    var dataAccess = options.dataAccess;
 
     var state = {
         stateId: 1,
@@ -198,16 +197,6 @@ module.exports = function createGame(options) {
                         influence[j].revealed = true;
                     }
                 }
-                //If the player was eliminated already or an observer, we do not record a disconnect
-                if (playerId && playerState.influenceCount > 0) {
-                    //Record the stats on the game
-                    gameStats.playerDisconnect.unshift(playerId);
-                    //Record the stats individually, in case the game does not finish
-                    //Should not be recorded if the player is the last human player
-                    if (!onlyAiLeft()) {
-                        dataAccess.recordPlayerDisconnect(playerId);
-                    }
-                }
                 playerState.influenceCount = 0;
                 var end = checkForGameEnd();
                 if (!end) {
@@ -325,7 +314,6 @@ module.exports = function createGame(options) {
     }
 
     function afterPlayerDeath(playerIdx) {
-        gameStats.playerRank.unshift(playerIfaces[playerIdx].playerId);
         addHistory('player-died', nextAdhocHistGroup(), '{%d} suffered a humiliating defeat', playerIdx);
         checkForGameEnd();
     }
@@ -351,9 +339,6 @@ module.exports = function createGame(options) {
             gameTracker.gameOver(state);
             resetReadyStates();
             var playerId = playerIfaces[winnerIdx].playerId;
-            gameStats.playerRank.unshift(playerId);
-            gameStats.events = gameTracker.pack().toString('base64');
-            dataAccess.recordGameData(gameStats);
             game.emit('end');
             return true;
         } else {
@@ -443,10 +428,8 @@ module.exports = function createGame(options) {
         if (countReadyPlayers() < MIN_PLAYERS) {
             throw new GameException('Not enough players are ready to play');
         }
-        gameStats = dataAccess.constructGameStats();
-        gameStats.gameType = gameType || 'original';
         state.roles = ['duke', 'captain', 'assassin', 'contessa'];
-        if (gameStats.gameType === 'inquisitors') {
+        if (gameType === 'inquisitors') {
             state.roles.push('inquisitor');
         }
         else {
@@ -488,11 +471,6 @@ module.exports = function createGame(options) {
                 }
                 playerState.influenceCount = INFLUENCES;
                 playerState.cash = INITIAL_CASH;
-
-                gameStats.players++;
-                if (!playerState.ai) {
-                    gameStats.humanPlayers++;
-                }
 
                 nonObservers.push(i);
             }
@@ -1248,7 +1226,7 @@ module.exports = function createGame(options) {
     }
 
     function gameType() {
-        return gameStats && gameStats.gameType || 'original';
+        return this.gameType || 'original';
     }
 
     function playersInGame() {
