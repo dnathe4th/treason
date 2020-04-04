@@ -29,6 +29,13 @@ winston.add(winston.transports.File, {
 winston.remove(winston.transports.Console);
 winston.info('server started');
 
+const redis = require("redis");
+const client = redis.createClient(process.env.REDIS_URL);
+
+client.on("error", function(error) {
+  winston.error(error);
+});
+
 var express = require('express');
 var app = express();
 app.set('views', __dirname + '/views');

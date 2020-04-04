@@ -23,3 +23,17 @@ Font is Xolonium; http://openfontlibrary.org/en/font/xolonium; SIL Open Font Lic
 Coup
 -----
 The Coup card game is Copyright Rikki Tahta, La Mame Games.
+
+Modifications
+==============================================
+
+All modification copyright Dom Narducci (dnathe4th) 2020
+Licensed under Creative Commons Attribution-NonCommercial, http://creativecommons.org/licenses/by-nc/4.0
+
+- Removal of dependency on couchdb
+- Changes necessary to run on Heroku platform (Procfile, et al.)
+- Addition of dependency on redis for crash resilience
+- Various gameplay implementation changes:
+    - Per-player waiting for response state in UI
+    - Clipping of long player names
+    - Game ID in UI
