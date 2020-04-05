@@ -604,17 +604,8 @@ module.exports = function createGame(options) {
                 }
             } else {
                 debug('checking for blocks/challenges');
-                if (command.action == 'steal') {
-                    message = format('{%d} attempted to steal from {%d}', playerIdx, command.target);
-                } else if (command.action == 'assassinate') {
-                    message = format('{%d} attempted to assassinate {%d}', playerIdx, command.target);
-                } else if (command.action == 'exchange') {
-                    message = format('{%d} attempted to exchange', playerIdx);
-                } else if (command.action == 'interrogate') {
-                    message = format('{%d} attempted to interrogate {%d}', playerIdx, command.target);
-                } else {
-                    message = format('{%d} attempted to draw %s', playerIdx, command.action);
-                }
+                const fArgs = action.message || ((idx, t, a) => ['{%d} attempted to draw %s', idx, a]);
+                const message = format(...fArgs(playerIdx, command.target, command.action));
                 resetAllows(playerIdx);
                 setState({
                     name: stateNames.ACTION_RESPONSE,
@@ -729,8 +720,11 @@ module.exports = function createGame(options) {
             if (playerState.influenceCount == 0) {
                 throw new GameException('Dead players cannot allow actions');
             }
-            var nextTurn = allow(playerIdx);
-            if (!nextTurn) {
+            if ([stateNames.BLOCK_RESPONSE, stateNames.ACTION_RESPONSE, stateNames.FINAL_ACTION_RESPONSE].indexOf(state.state.name) === -1) {
+                throw new GameException('Incorrect state');
+            }
+            var shouldProgressTurn = allow(playerIdx);
+            if (!shouldProgressTurn) {
                 // update waiting for list but keep state the same
                 setState({
                     ...state.state,
@@ -802,6 +796,7 @@ module.exports = function createGame(options) {
         emitState();
     }
 
+    // returns bool of whether to emit state change
     function allow(playerIdx) {
         if (state.state.name == stateNames.BLOCK_RESPONSE) {
             if (state.state.target == playerIdx) {
@@ -835,8 +830,6 @@ module.exports = function createGame(options) {
                 nextTurn();
             }
             return true;
-        } else {
-            throw new GameException('Incorrect state');
         }
     }
 
@@ -1031,6 +1024,7 @@ module.exports = function createGame(options) {
         return null;
     }
 
+    // returns bool of whether nextTurn should be called
     function playAction(playerIdx, actionState) {
         debug('playing action');
         var target, message, revealedRole;

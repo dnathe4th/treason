@@ -37,3 +37,4 @@ Licensed under Creative Commons Attribution-NonCommercial, http://creativecommon
     - Per-player waiting for response state in UI
     - Clipping of long player names
     - Game ID in UI
+    - Command flow refactoring
